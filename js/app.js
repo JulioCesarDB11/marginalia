@@ -11,10 +11,19 @@
     { id: 'papel', name: 'Papel' },
     { id: 'sepia', name: 'Sépia' },
     { id: 'lavanda', name: 'Lavanda' },
-    { id: 'ardosia', name: 'Ardósia' },
-    { id: 'meianoite', name: 'Meia-noite' },
-    { id: 'floresta', name: 'Floresta' },
-    { id: 'quadro', name: 'Quadro-negro' },
+    { id: 'oceano', name: 'Oceano' },
+    { id: 'menta', name: 'Menta' },
+    { id: 'rose', name: 'Rosé' },
+    { id: 'solar', name: 'Solar' },
+    { id: 'contraste', name: 'Alto contraste' },
+    { id: 'ardosia', name: 'Ardósia', dark: true },
+    { id: 'meianoite', name: 'Meia-noite', dark: true },
+    { id: 'floresta', name: 'Floresta', dark: true },
+    { id: 'quadro', name: 'Quadro-negro', dark: true },
+    { id: 'cafe', name: 'Café', dark: true },
+    { id: 'grafite', name: 'Grafite', dark: true },
+    { id: 'artico', name: 'Ártico', dark: true },
+    { id: 'noiteroxa', name: 'Noite roxa', dark: true },
   ];
   const FONTS = {
     literata: { name: 'Literata', css: "'Literata', Georgia, serif" },
@@ -381,7 +390,7 @@
   async function openBook(id) {
     save.flush();
     const b = S.books.find(x => x.id === id) || S.books[0];
-    if (!b) { renderWelcome(); return; }
+    if (!b) { showLibrary(); return; }
     S.book = b;
     setView('book');
     LS.set('lastBook', b.id);
@@ -762,8 +771,9 @@
   // ---------- Biblioteca ----------
   function setView(v) {
     S.view = v;
-    LS.set('view', v === 'library' ? 'library' : 'book');
+    if (v === 'library' || v === 'book') LS.set('view', v);
     $('#app').classList.toggle('library-mode', v !== 'book');
+    $('#app').classList.toggle('start-mode', v === 'start');
   }
 
   const STOPWORDS = new Set(['a', 'o', 'as', 'os', 'à', 'às', 'ao', 'aos', 'de', 'do', 'da', 'dos', 'das', 'e', 'em', 'no', 'na', 'nos', 'nas', 'um', 'uma', 'com', 'para', 'por', 'the', 'of', 'and', 'for', 'to', 'in', 'an']);
@@ -784,7 +794,7 @@
     S.note = null;
     setView('library');
     closeDrawer();
-    if (!S.books.length) { renderWelcome(); return; }
+    renderSidebar();
     const crumbs = $('#crumbs');
     crumbs.innerHTML = '';
     crumbs.append(h('span', { class: 'crumb book' }, 'Meus livros'));
@@ -833,42 +843,151 @@
         h('span', { class: 'folder-tab' }),
         h('span', { class: 'folder-front', html: icon('plus', 34) })),
       h('div', { class: 'lib-info' }, h('h3', { class: 'lib-title' }, h('button', { type: 'button', onclick: () => openImport() }, 'Novo livro')),
-        h('div', { class: 'lib-meta' }, 'Importe outro sumário'))));
+        h('div', { class: 'lib-meta' }, 'Importe o sumário de um livro'))));
+    // modelo pronto, enquanto o livro dele ainda não existe
+    const tpl = TOC.TEMPLATES[0];
+    if (!S.books.some(b => norm(b.title) === norm(tpl.title))) {
+      grid.append(h('article', { class: 'lib-card new tpl' },
+        h('button', { type: 'button', class: 'folder', onclick: () => openImport(null, tpl), 'aria-label': `Começar com ${tpl.label}` },
+          h('span', { class: 'folder-tab' }),
+          h('span', { class: 'folder-front' }, h('span', { class: 'folder-initials' }, initials(tpl.title)))),
+        h('div', { class: 'lib-info' }, h('h3', { class: 'lib-title' }, h('button', { type: 'button', onclick: () => openImport(null, tpl) }, tpl.label)),
+          h('div', { class: 'lib-meta' }, 'Modelo de sumário pronto'))));
+    }
 
     page.append(
       h('header', { class: 'lib-head' },
-        h('h1', {}, 'Meus livros'),
-        h('span', { class: 'lib-count' }, books.length === 1 ? '1 livro' : `${books.length} livros`)),
+        h('div', { class: 'lib-head-text' },
+          h('h1', {}, 'Meus livros'),
+          h('span', { class: 'lib-count' }, !books.length ? 'Comece adicionando o livro que você está lendo' : books.length === 1 ? '1 livro' : `${books.length} livros`)),
+        accountChip()),
       grid);
     $('#scroller').scrollTop = 0;
   }
 
-  // ---------- Boas-vindas ----------
-  function renderWelcome() {
+  // ---------- Conta ----------
+  function avatar(u, size = 28) {
+    const style = `width:${size}px;height:${size}px`;
+    if (u?.photo) return h('img', { class: 'avatar', src: u.photo, alt: '', referrerpolicy: 'no-referrer', style });
+    const ini = u?.name ? initials(u.name) : '';
+    return h('span', { class: 'avatar', style, html: ini ? esc(ini) : icon('user', Math.round(size * 0.55)) });
+  }
+
+  function accountChip() {
+    const u = Sync.connected ? Sync.user : null;
+    const label = u ? (u.name || u.email || 'Conta Google') : 'Sem login';
+    return h('button', { type: 'button', class: 'account-chip', title: u?.email || 'Usando só neste aparelho', onclick: e => accountMenu(e.currentTarget) },
+      avatar(u), h('span', { class: 'account-name' }, label), h('span', { html: icon('chevDown', 14) }));
+  }
+
+  function accountMenu(anchor) {
+    const entries = Sync.connected
+      ? [
+        { icon: 'refresh', label: 'Sincronizar agora', action: () => Sync.connectAndSync() },
+        { icon: 'sliders', label: 'Aparência e dados', action: () => openSettings() },
+        { icon: 'home', label: 'Tela inicial', action: showStart },
+        '-',
+        { icon: 'logout', label: 'Sair da conta', danger: true, action: logout },
+      ]
+      : [
+        { icon: 'cloud', label: 'Entrar com Google', action: () => Sync.connectAndSync().then(ok => { if (ok) enterApp(); }), disabled: !Sync.configured },
+        { icon: 'sliders', label: 'Aparência e dados', action: () => openSettings() },
+        { icon: 'home', label: 'Tela inicial', action: showStart },
+      ];
+    showMenu(anchor, entries);
+  }
+
+  function logout() {
+    if (!confirm('Sair da conta do Google neste aparelho?\n\nSuas anotações continuam salvas aqui e no seu Drive.')) return;
+    Sync.disconnect();
+    try { sessionStorage.removeItem('marginalia:entered'); } catch {}
+    showStart();
+  }
+
+  // Sai da tela inicial e vai para "Meus livros"
+  async function enterApp() {
+    try { sessionStorage.setItem('marginalia:entered', '1'); } catch {}
+    S.books = (await DB.getBooks()).sort((a, b) => a.createdAt - b.createdAt);
+    if (S.book && !S.books.some(b => b.id === S.book.id)) S.book = null;
+    await showLibrary();
+  }
+
+  // ---------- Tela inicial ----------
+  const GOOGLE_G = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
+  function showStart() {
+    save.flush();
     destroyBoards();
-    S.book = null;
     S.note = null;
-    setView('welcome');
-    renderSidebar();
-    $('#search').disabled = true;
-    $('#crumbs').innerHTML = '';
-    const tpl = TOC.TEMPLATES[0];
+    setView('start');
+    closeDrawer();
+    closeMenu();
+
     const page = $('#page');
-    page.className = 'page welcome-page';
+    page.className = 'page start-page';
     page.innerHTML = '';
-    page.append(h('div', { class: 'welcome' },
-      h('div', { class: 'welcome-mark', html: icon('book', 30) }),
-      h('h1', {}, 'Seu caderno de estudos, organizado pelo sumário'),
-      h('p', { class: 'lead' }, 'Importe o sumário do livro que você está lendo. Cada capítulo e seção vira um bloco com espaço para texto, desenhos e código — e você acompanha o que já leu.'),
-      h('div', { class: 'welcome-actions' },
-        h('button', { type: 'button', class: 'btn primary lg', onclick: () => openImport(null, tpl) }, `Começar com ${tpl.label}`),
-        h('button', { type: 'button', class: 'btn lg', onclick: () => openImport() }, 'Importar outro livro')),
-      Sync.configured ? h('button', { type: 'button', class: 'btn ghost welcome-sync', html: icon('cloud', 16) + '<span>Já uso em outro aparelho — trazer minhas anotações do Google Drive</span>',
-        onclick: () => Sync.connectAndSync() }) : null,
-      h('ol', { class: 'steps' },
-        h('li', {}, h('b', {}, 'Cole o sumário'), h('span', {}, 'numerado, com recuo ou copiado do PDF')),
-        h('li', {}, h('b', {}, 'Abra a seção que está lendo'), h('span', {}, 'anote, desenhe, cole trechos de código')),
-        h('li', {}, h('b', {}, 'Marque o progresso'), h('span', {}, 'A ler, Lendo, Lido ou Revisar')))));
+
+    const FEATURES = [
+      ['book', 'Importe o sumário', 'Cole o sumário do livro e cada capítulo e seção vira um bloco de estudo.'],
+      ['pen', 'Anote, desenhe e programe', 'Texto, desenhos à mão (com a caneta do iPad) e trechos de código em cada seção.'],
+      ['check', 'Acompanhe o progresso', 'Marque A ler, Lendo, Lido ou Revisar e veja quanto falta em cada livro.'],
+      ['cloud', 'Continue em outro aparelho', 'Entre com o Google e suas anotações sincronizam entre PC e iPad.'],
+    ];
+
+    const errorBox = h('p', { class: 'start-error', role: 'alert', hidden: true });
+    const showError = msg => { errorBox.textContent = msg; errorBox.hidden = !msg; };
+
+    const doLogin = async (btn, opts) => {
+      showError('');
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = icon('refresh', 18) + '<span>Entrando…</span>';
+      btn.classList.add('busy');
+      const ok = await Sync.connectAndSync(opts); // abre a janela do Google na hora do clique
+      btn.disabled = false;
+      btn.innerHTML = original;
+      btn.classList.remove('busy');
+      if (ok) enterApp();
+      else showError(Sync.state.error || 'Não foi possível entrar. Tente de novo.');
+    };
+
+    const u = Sync.connected ? Sync.user : null;
+    const login = h('section', { class: 'start-card start-login' }, h('h2', {}, 'Entrar'));
+    if (!Sync.configured) {
+      login.append(h('p', { class: 'start-note' }, 'O login com Google não está configurado nesta cópia do app.'));
+    } else if (u) {
+      const btn = h('button', { type: 'button', class: 'btn primary lg block', onclick: () => doLogin(btn, {}) },
+        avatar(u, 26), h('span', {}, `Continuar como ${u.name ? u.name.split(' ')[0] : u.email}`));
+      login.append(
+        h('div', { class: 'start-account' }, avatar(u, 40), h('div', {}, h('b', {}, u.name || 'Conta Google'), h('span', {}, u.email))),
+        btn,
+        h('button', { type: 'button', class: 'link-btn', onclick: e => doLogin(e.currentTarget, { switchAccount: true }) }, 'Usar outra conta'));
+    } else {
+      const btn = h('button', { type: 'button', class: 'btn google lg block', html: GOOGLE_G + '<span>Entrar com Google</span>', onclick: () => doLogin(btn, {}) });
+      login.append(btn);
+    }
+    if (Sync.configured) login.append(h('p', { class: 'start-note' }, 'Suas anotações ficam numa pasta privada deste app no seu Google Drive. O app não vê seus outros arquivos.'));
+    login.append(
+      errorBox,
+      h('div', { class: 'start-or' }, h('span', {}, 'ou')),
+      h('button', { type: 'button', class: 'btn lg block', onclick: enterApp }, 'Usar sem login neste aparelho'),
+      h('p', { class: 'start-note small' }, 'Sem login, tudo fica salvo só neste navegador.'));
+
+    const prefs = h('section', { class: 'start-card start-prefs' },
+      h('div', { class: 'start-card-head' },
+        h('h2', {}, 'Aparência'),
+        h('button', { type: 'button', class: 'link-btn', onclick: () => openSettings() }, 'Fontes e mais opções')),
+      themePicker());
+
+    page.append(h('div', { class: 'start-wrap' },
+      h('div', { class: 'start-hero' },
+        h('div', { class: 'start-brand' }, h('span', { class: 'brand-mark lg' }, 'M'), h('span', {}, 'Marginália')),
+        h('h1', {}, 'Seu caderno de estudos, organizado pelo sumário do livro'),
+        h('p', { class: 'lead' }, 'Leia com o livro aberto e anote em cada seção: o app guarda suas notas, desenhos e códigos no lugar certo do sumário.'),
+        h('ul', { class: 'start-features' }, FEATURES.map(([ic, t, d]) =>
+          h('li', {}, h('span', { class: 'sf-icon', html: icon(ic, 18) }), h('div', {}, h('b', {}, t), h('span', {}, d)))))),
+      h('div', { class: 'start-side' }, login, prefs)));
+    $('#scroller').scrollTop = 0;
   }
 
   // ---------- Importar / editar sumário ----------
@@ -998,7 +1117,7 @@
     Sync.markDeleted(b.id);
     Sync.schedule();
     S.books = S.books.filter(x => x.id !== b.id);
-    if (S.books.length) showLibrary(); else renderWelcome();
+    showLibrary();
   }
 
   // ---------- Exportar / backup ----------
@@ -1080,6 +1199,27 @@ ${parts.join('\n')}
   }
 
   // ---------- Configurações ----------
+  function themePicker() {
+    const wrap = h('div', { class: 'theme-groups' });
+    const pick = id => {
+      S.settings.theme = id;
+      applySettings();
+      wrap.querySelectorAll('.theme-card').forEach(b => {
+        b.classList.toggle('on', b.dataset.id === id);
+        b.setAttribute('aria-pressed', String(b.dataset.id === id));
+      });
+    };
+    for (const [label, list] of [['Claros', THEMES.filter(t => !t.dark)], ['Escuros', THEMES.filter(t => t.dark)]]) {
+      wrap.append(h('div', { class: 'theme-group-label' }, label), h('div', { class: 'theme-grid' }, list.map(t =>
+        h('button', { type: 'button', class: 'theme-card' + (S.settings.theme === t.id ? ' on' : ''), 'data-id': t.id, 'aria-pressed': String(S.settings.theme === t.id), onclick: () => pick(t.id) },
+          h('span', { class: 'tc-preview', 'data-theme': t.id },
+            h('span', { class: 'tc-side' }, h('i'), h('i'), h('i')),
+            h('span', { class: 'tc-page' }, h('b'), h('i'), h('i'), h('em'))),
+          h('span', { class: 'tc-name' }, t.name)))));
+    }
+    return wrap;
+  }
+
   function renderSettings() {
     const st = S.settings;
     const body = $('#settingsBody');
@@ -1088,12 +1228,7 @@ ${parts.join('\n')}
 
     body.append(
       h('h3', { class: 'set-title' }, 'Tema'),
-      h('div', { class: 'theme-grid' }, THEMES.map(t =>
-        h('button', { type: 'button', class: 'theme-card' + (st.theme === t.id ? ' on' : ''), onclick: () => set('theme', t.id), 'aria-pressed': String(st.theme === t.id) },
-          h('span', { class: 'tc-preview', 'data-theme': t.id },
-            h('span', { class: 'tc-side' }, h('i'), h('i'), h('i')),
-            h('span', { class: 'tc-page' }, h('b'), h('i'), h('i'), h('em'))),
-          h('span', { class: 'tc-name' }, t.name)))),
+      themePicker(),
 
       h('h3', { class: 'set-title' }, 'Fonte das anotações'),
       h('div', { class: 'font-list' }, Object.entries(FONTS).map(([id, f]) =>
@@ -1193,9 +1328,8 @@ ${parts.join('\n')}
   async function applyRemote(ch) {
     if (!ch.books.length && !ch.notes.length && !ch.deleted.length) return;
     S.books = (await DB.getBooks()).sort((a, b) => a.createdAt - b.createdAt);
-    if (!S.books.length) { renderWelcome(); return; }
-    if (S.view === 'library') { showLibrary(); return; }
-    if (S.view === 'welcome') { if (S.books.length > 1) showLibrary(); else await openBook(S.books[0].id); return; }
+    if (S.view === 'start') return; // a tela inicial leva para a biblioteca depois do login
+    if (S.view === 'library' || !S.books.length) { showLibrary(); return; }
     const cur = S.book && S.books.find(b => b.id === S.book.id);
     if (!cur) { showLibrary(); return; }
     const tocChanged = ch.books.includes(cur.id);
@@ -1273,6 +1407,7 @@ ${parts.join('\n')}
     $('#btnSync').onclick = onSyncClick;
     Sync.onChange(st => {
       renderSyncButton(st);
+      $('.account-chip')?.replaceWith(accountChip());
       if ($('#dlgSettings').open) { const sc = $('#dlgSettings .dlg-body').scrollTop; renderSettings(); $('#dlgSettings .dlg-body').scrollTop = sc; }
     });
     // ao sair da aba envia; ao voltar, busca o que mudou em outro aparelho
@@ -1289,8 +1424,11 @@ ${parts.join('\n')}
       $('#page').innerHTML = '<div class="empty-state"><h2>Não consegui abrir o armazenamento do navegador</h2><p>Tente abrir em uma janela normal (não anônima) do Chrome, Edge ou Firefox.</p></div>';
       return;
     }
-    if (!S.books.length) renderWelcome();
-    else if (LS.get('view') === 'library') { renderSidebar(); await showLibrary(); }
+    // tela inicial a cada vez que o app é aberto, a não ser que já tenha entrado nesta aba
+    let entered = false;
+    try { entered = !!sessionStorage.getItem('marginalia:entered'); } catch {}
+    if (!entered && !(Sync.connected && Sync.hasToken())) showStart();
+    else if (!S.books.length || LS.get('view') === 'library') await showLibrary();
     else await openBook(LS.get('lastBook'));
     Sync.init({
       beforeSync: async () => { save.flush(); await S.saving; },

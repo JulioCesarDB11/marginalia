@@ -14,6 +14,7 @@ const Sync = (() => {
     last: 'marginalia:sync:last',
     tombs: 'marginalia:sync:tombstones',
     token: 'marginalia:sync:token',
+    user: 'marginalia:sync:user',
   };
 
   const clientId = () => ((typeof CONFIG !== 'undefined' && CONFIG.googleClientId) || '').trim();
@@ -66,17 +67,20 @@ const Sync = (() => {
     return gisP;
   }
 
-  // Precisa ser chamado direto de um clique, senão o navegador bloqueia a janela de login
-  function login() {
+  // Precisa ser chamado direto de um clique, senão o navegador bloqueia a janela de login.
+  // opts.switchAccount: deixa escolher outra conta do Google.
+  function login(opts = {}) {
     if (!clientId()) return Promise.reject(new Error('Sincronização não configurada (falta o ID do cliente em js/config.js).'));
     if (!window.google?.accounts?.oauth2) {
       loadGis().catch(() => {});
       return Promise.reject(new Error('O login do Google ainda está carregando. Tente de novo em alguns segundos.'));
     }
     return new Promise((resolve, reject) => {
+      const known = lsGet(K.user, null);
       const tc = google.accounts.oauth2.initTokenClient({
         client_id: clientId(),
         scope: SCOPE,
+        hint: !opts.switchAccount && known?.email ? known.email : undefined,
         callback: r => {
           if (r.error) return reject(new Error(r.error_description || r.error));
           if (!google.accounts.oauth2.hasGrantedAllScopes(r, SCOPE)) return reject(new Error('É preciso permitir o acesso à pasta do app no Drive.'));
@@ -86,8 +90,22 @@ const Sync = (() => {
         },
         error_callback: e => reject(new Error(e?.type === 'popup_closed' ? 'Login cancelado.' : e?.type === 'popup_failed_to_open' ? 'O navegador bloqueou a janela de login. Permita pop-ups para este site.' : (e?.message || 'Falha no login.'))),
       });
-      tc.requestAccessToken({ prompt: lsGet(K.connected, false) ? '' : 'consent' });
+      tc.requestAccessToken({ prompt: opts.switchAccount ? 'select_account' : lsGet(K.connected, false) ? '' : 'consent' });
     });
+  }
+
+  // Nome, e-mail e foto da conta (para mostrar "Continuar como …")
+  async function fetchUser() {
+    try {
+      const r = await api(`${API}/about?fields=user(displayName,emailAddress,photoLink)`);
+      const u = (await r.json()).user || {};
+      const prev = lsGet(K.user, null);
+      lsSet(K.user, { name: u.displayName || '', email: u.emailAddress || '', photo: u.photoLink || '' });
+      return prev?.email && u.emailAddress && prev.email !== u.emailAddress; // trocou de conta?
+    } catch (err) {
+      console.warn('Não consegui ler os dados da conta', err);
+      return false;
+    }
   }
 
   // ---------- Google Drive ----------
@@ -202,12 +220,25 @@ const Sync = (() => {
     return running;
   }
 
-  // Chamado direto de um clique: pede login se precisar e sincroniza
-  function connectAndSync() {
-    if (hasToken()) return syncNow();
+  // Chamado direto de um clique: pede login se precisar e sincroniza.
+  // Resolve com true se ficou logado.
+  async function connectAndSync(opts = {}) {
+    if (hasToken() && !opts.switchAccount) { await syncNow(); return true; }
     let p;
-    try { p = login(); } catch (err) { p = Promise.reject(err); }
-    return p.then(syncNow, err => setStatus(lsGet(K.connected, false) ? 'needs-auth' : 'off', err.message));
+    try { p = login(opts); } catch (err) { p = Promise.reject(err); }
+    try {
+      await p;
+    } catch (err) {
+      setStatus(lsGet(K.connected, false) ? 'needs-auth' : 'off', err.message);
+      return false;
+    }
+    const switched = await fetchUser();
+    if (switched && !confirm(`Você entrou com outra conta do Google (${lsGet(K.user, {}).email}).\n\nAs anotações deste aparelho serão juntadas às dessa conta. Continuar?`)) {
+      disconnect();
+      return false;
+    }
+    await syncNow();
+    return true;
   }
 
   // Depois de cada alteração: espera um pouco e sincroniza (se já houver login nesta sessão)
@@ -222,7 +253,8 @@ const Sync = (() => {
     try { if (token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(token, () => {}); } catch {}
     clearToken();
     lsSet(K.connected, false);
-    setStatus('off');
+    try { localStorage.removeItem(K.user); } catch {}
+    setStatus(clientId() ? 'off' : 'unconfigured');
   }
 
   // id de um livro (apaga o livro todo) ou de uma nota (apaga só aquele tópico)
@@ -247,6 +279,7 @@ const Sync = (() => {
     get state() { return { ...state }; },
     get configured() { return !!clientId(); },
     get connected() { return !!lsGet(K.connected, false); },
+    get user() { return lsGet(K.user, null); },
     hasToken,
     _test: { merge, setToken },
   };
