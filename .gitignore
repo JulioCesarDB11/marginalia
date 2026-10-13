@@ -1,0 +1,4 @@
+.DS_Store
+Thumbs.db
+# backups pessoais exportados pelo app (contêm suas anotações)
+marginalia-backup-*.json

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="papel">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fbfaf7">
+  <title>Marginália</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f5bd3'/%3E%3Cpath d='M9 23V9l7 8 7-8v14' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-title" content="Marginália">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Caveat:wght@400;600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Patrick+Hand&display=swap">
+  <link rel="stylesheet" href="css/app.css?v=3">
+</head>
+<body>
+  <div id="app" class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Sumário">
+      <div class="brand">
+        <span class="brand-mark">M</span>
+        <span class="brand-name">Marginália</span>
+        <button type="button" class="icon-btn only-mobile" id="btnCloseSidebar" aria-label="Fechar sumário"></button>
+      </div>
+
+      <button type="button" class="lib-btn" id="btnLibrary" hidden></button>
+      <div class="book-head" id="bookPicker" hidden>
+        <h2 class="book-title" id="bookTitle"></h2>
+        <button type="button" class="icon-btn" id="btnBookMenu" aria-label="Opções do livro" title="Opções do livro"></button>
+      </div>
+      <div class="book-meta" id="bookMeta"></div>
+
+      <div class="search">
+        <span class="search-ic" id="searchIcon"></span>
+        <input id="search" type="search" placeholder="Buscar no sumário e nas notas" aria-label="Buscar" autocomplete="off">
+        <kbd>Ctrl K</kbd>
+      </div>
+
+      <nav class="toc" id="toc" role="tree" aria-label="Blocos do livro"></nav>
+
+      <div class="sidebar-foot">
+        <button type="button" class="btn ghost" id="btnNewBook">+ Novo livro</button>
+        <button type="button" class="btn ghost" id="btnSettings">Aparência e dados</button>
+      </div>
+    </aside>
+    <div class="backdrop" id="backdrop"></div>
+
+    <main class="main">
+      <header class="topbar">
+        <button type="button" class="icon-btn" id="btnToggleSidebar" aria-label="Mostrar/ocultar sumário" title="Mostrar/ocultar sumário"></button>
+        <nav class="crumbs" id="crumbs" aria-label="Você está em"></nav>
+        <span class="save-state" id="saveState" aria-live="polite"></span>
+        <button type="button" class="sync-btn" id="btnSync" hidden></button>
+        <button type="button" class="icon-btn" id="btnSettingsTop" aria-label="Aparência" title="Aparência"></button>
+      </header>
+      <div class="scroller" id="scroller">
+        <article class="page" id="page"></article>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="dlgImport" class="dlg wide" aria-labelledby="impHeading">
+    <form id="impForm" method="dialog">
+      <header class="dlg-head">
+        <h2 id="impHeading">Novo livro</h2>
+      </header>
+      <div class="dlg-body import-grid">
+        <div class="col">
+          <label class="field">
+            <span>Título</span>
+            <input id="impTitle" autocomplete="off" placeholder="Ex.: Data Science do Zero">
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>Autor</span>
+              <input id="impAuthor" autocomplete="off">
+            </label>
+            <label class="field narrow">
+              <span>Edição</span>
+              <input id="impEdition" autocomplete="off" placeholder="2ª edição">
+            </label>
+          </div>
+          <label class="field grow">
+            <span>Sumário</span>
+            <textarea id="impText" spellcheck="false" placeholder="Cole o sumário aqui, uma entrada por linha.&#10;&#10;1 Introdução&#10;  A Ascensão dos Dados&#10;  O Que É Data Science?&#10;2 Um Curso Intensivo de Python&#10;2.1 O Zen do Python ......... 15"></textarea>
+          </label>
+          <p class="hint">Níveis são detectados pela numeração (1, 1.2, 1.2.3), por “Capítulo”/“Parte”, por <code>#</code>/<code>##</code> ou pelo recuo da linha. Ajuste na prévia com as setas, se precisar.</p>
+          <p class="hint tpl-note" id="impTplNote" hidden>Modelo aproximado: os capítulos seguem a 2ª edição, mas só o capítulo 1 tem seções de exemplo. Confira com o seu exemplar e cole as seções dos outros capítulos.</p>
+          <div class="field-row between">
+            <label class="check"><input type="checkbox" id="impPages" checked> Número no fim da linha é a página</label>
+            <button type="button" class="btn ghost sm" id="impTemplate"></button>
+          </div>
+        </div>
+        <div class="col">
+          <div class="preview-head"><span>Pré-visualização</span><span id="impCount"></span></div>
+          <div class="preview" id="impPreview"></div>
+        </div>
+      </div>
+      <footer class="dlg-foot">
+        <button type="button" class="btn" id="impCancel">Cancelar</button>
+        <button type="submit" class="btn primary" id="impSave">Criar livro</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="dlgSettings" class="dlg" aria-labelledby="setHeading">
+    <header class="dlg-head">
+      <h2 id="setHeading">Aparência e dados</h2>
+      <button type="button" class="icon-btn" id="setClose" aria-label="Fechar">&times;</button>
+    </header>
+    <div class="dlg-body" id="settingsBody"></div>
+  </dialog>
+
+  <script src="js/config.js?v=3"></script>
+  <script src="js/util.js?v=3"></script>
+  <script src="js/db.js?v=3"></script>
+  <script src="js/sync.js?v=3"></script>
+  <script src="js/toc.js?v=3"></script>
+  <script src="js/board.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+</body>
+</html>
