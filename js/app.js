@@ -24,6 +24,10 @@
     { id: 'grafite', name: 'Grafite', dark: true },
     { id: 'artico', name: 'Ártico', dark: true },
     { id: 'noiteroxa', name: 'Noite roxa', dark: true },
+    { id: 'flamengo', name: 'Flamengo', dark: true, group: 'uniformes' },
+    { id: 'uniforme2', name: 'Uniforme 2', group: 'uniformes' },
+    { id: 'estadio', name: 'Estádio', dark: true, group: 'uniformes' },
+    { id: 'gramado', name: 'Gramado', group: 'uniformes' },
   ];
   const FONTS = {
     literata: { name: 'Literata', css: "'Literata', Georgia, serif" },
@@ -1209,7 +1213,12 @@ ${parts.join('\n')}
         b.setAttribute('aria-pressed', String(b.dataset.id === id));
       });
     };
-    for (const [label, list] of [['Claros', THEMES.filter(t => !t.dark)], ['Escuros', THEMES.filter(t => t.dark)]]) {
+    const groups = [
+      ['Claros', THEMES.filter(t => !t.dark && !t.group)],
+      ['Escuros', THEMES.filter(t => t.dark && !t.group)],
+      ['Uniformes', THEMES.filter(t => t.group === 'uniformes')],
+    ];
+    for (const [label, list] of groups) {
       wrap.append(h('div', { class: 'theme-group-label' }, label), h('div', { class: 'theme-grid' }, list.map(t =>
         h('button', { type: 'button', class: 'theme-card' + (S.settings.theme === t.id ? ' on' : ''), 'data-id': t.id, 'aria-pressed': String(S.settings.theme === t.id), onclick: () => pick(t.id) },
           h('span', { class: 'tc-preview', 'data-theme': t.id },
