@@ -52,6 +52,16 @@ const ICON_PATHS = {
   refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
 };
 
+// Logo: um lápis fazendo a lombada de um livro aberto (traço em currentColor)
+const LOGO_PATHS =
+  '<path d="M16 28 13.8 22V6.2a2.2 2.2 0 0 1 4.4 0V22Z"/><path d="M13.8 9.2h4.4M13.8 22h4.4"/>' +
+  '<path d="M11.3 12C8.6 10.6 5.8 10.3 3 11V24.8C5.8 24.1 8.6 24.4 11.3 25.8"/>' +
+  '<path d="M20.7 12C23.4 10.6 26.2 10.3 29 11V24.8C26.2 24.1 23.4 24.4 20.7 25.8"/>';
+
+function logo(size = 20, stroke = 2.4) {
+  return `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LOGO_PATHS}</svg>`;
+}
+
 function icon(name, size = 18) {
   return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
 }

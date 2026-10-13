@@ -985,7 +985,7 @@
 
     page.append(h('div', { class: 'start-wrap' },
       h('div', { class: 'start-hero' },
-        h('div', { class: 'start-brand' }, h('span', { class: 'brand-mark lg' }, 'M'), h('span', {}, 'Marginália')),
+        h('div', { class: 'start-brand' }, h('span', { class: 'brand-mark lg', html: logo(28) }), h('span', {}, 'Marginália')),
         h('h1', {}, 'Seu caderno de estudos, organizado pelo sumário do livro'),
         h('p', { class: 'lead' }, 'Leia com o livro aberto e anote em cada seção: o app guarda suas notas, desenhos e códigos no lugar certo do sumário.'),
         h('ul', { class: 'start-features' }, FEATURES.map(([ic, t, d]) =>
@@ -1386,6 +1386,8 @@ ${parts.join('\n')}
     $('#btnNewBook').onclick = () => openImport();
     $('#btnSettings').onclick = openSettings;
     $('#btnSettingsTop').onclick = openSettings;
+    $('#btnBrand .brand-mark').innerHTML = logo(20);
+    $('#btnBrand').onclick = showLibrary;
     $('#btnLibrary').innerHTML = icon('library', 17) + '<span>Meus livros</span>';
     $('#btnLibrary').onclick = showLibrary;
     const doSearch = debounce(() => renderToc(), 120);
