@@ -6,7 +6,10 @@ Custo zero: HTML, CSS e JavaScript puro, sem dependências e sem servidor. Os da
 
 ## Como abrir
 
-Dê dois cliques em **`abrir.bat`**. Ele sobe um servidorzinho local com o Python e abre http://localhost:5173 no navegador. Para parar, feche a janela minimizada “Marginalia - servidor”.
+**Online (qualquer aparelho):** https://juliocesardb11.github.io/marginalia/ — no iPad, abra no Safari e use
+Compartilhar › **Adicionar à Tela de Início**.
+
+**No PC, localmente:** Dê dois cliques em **`abrir.bat`**. Ele sobe um servidorzinho local com o Python e abre http://localhost:5173 no navegador. Para parar, feche a janela minimizada “Marginalia - servidor”.
 
 Ou, pelo terminal (de dentro da pasta `marginalia`):
 
